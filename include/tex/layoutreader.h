@@ -21,6 +21,10 @@ struct Pos
 {
   float x;
   float y;
+  Pos(float x, float y) {
+    Pos::x = x;
+    Pos::y = y;
+  }
 };
 
 struct LIBTYPESET_API LayoutReader 

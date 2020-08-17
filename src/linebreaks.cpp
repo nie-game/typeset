@@ -367,7 +367,6 @@ void Paragraph::tryBreak(std::list<std::shared_ptr<Breakpoint>> & activeBreakpoi
 {
   auto active = activeBreakpoints.begin();
   size_t current_line = 0;
-  const float maxratio = std::pow(tolerance / 100.f, 1.f / 3.f);
 
   const std::shared_ptr<Node> node = *it;
 
@@ -393,7 +392,7 @@ void Paragraph::tryBreak(std::list<std::shared_ptr<Breakpoint>> & activeBreakpoi
       if (ratio < -1 || isForcedLinebreak(*node))
         activeBreakpoints.erase(active);
 
-      if (-1 <= ratio && ratio <= maxratio)
+      if (-1 <= ratio)
       {
         Badness badness = computeBadness(ratio);
 
