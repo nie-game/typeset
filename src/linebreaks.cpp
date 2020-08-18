@@ -365,6 +365,9 @@ struct Candidate
  */
 void Paragraph::tryBreak(std::list<std::shared_ptr<Breakpoint>> & activeBreakpoints, const List &hlist, List::const_iterator it, Totals sum)
 {
+
+  const float maxratio = tolerance;
+
   auto active = activeBreakpoints.begin();
   size_t current_line = 0;
 
@@ -392,7 +395,7 @@ void Paragraph::tryBreak(std::list<std::shared_ptr<Breakpoint>> & activeBreakpoi
       if (ratio < -1 || isForcedLinebreak(*node))
         activeBreakpoints.erase(active);
 
-      if (-1 <= ratio)
+      if (-1 <= ratio && ratio <= maxratio)
       {
         Badness badness = computeBadness(ratio);
 

@@ -22,7 +22,7 @@ enum class FitnessClass {
 class LIBTYPESET_API Paragraph final
 {
 public:
-  int tolerance = /* 200 */ 800;
+  float tolerance = /* 200 */ 800;
   int adjdemerits = 10'000;
   int linepenalty = 10;
   float hsize = 800.f;
