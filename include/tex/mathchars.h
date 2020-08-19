@@ -524,7 +524,7 @@ namespace mathchars
   constexpr Character UP_TACK = 0x22A5;
   constexpr Character ASSERTION = 0x22A6;
   constexpr Character MODELS = 0x22A7;
-  constexpr Character TRUE = 0x22A8;
+  constexpr Character TRUE_SYMBOL = 0x22A8;
   constexpr Character FORCES = 0x22A9;
   constexpr Character TRIPLE_VERTICAL_BAR_RIGHT_TURNSTILE = 0x22AA;
   constexpr Character DOUBLE_VERTICAL_BAR_DOUBLE_RIGHT_TURNSTILE = 0x22AB;
