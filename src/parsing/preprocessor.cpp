@@ -7,60 +7,52 @@
 #include <cassert>
 #include <numeric>
 
-namespace tex
-{
+namespace tex {
 
-namespace parsing
-{
+namespace parsing {
 
-struct Matcher
-{
-  const std::vector<Token>& input;
-  const std::vector<Token>& pattern;
+struct Matcher {
+  const std::vector<Token> &input;
+  const std::vector<Token> &pattern;
   Macro::MatchResult result;
 
   size_t pattern_index = 0;
 
-  bool read_undelimited_arg()
-  {
+  bool read_undelimited_arg() {
     const int param_num = pattern.at(pattern_index++).parameterNumber() - 1;
 
-    if (input.at(result.size).isCharacterToken() && input.at(result.size).characterToken().category == CharCategory::Space)
-    {
+    if (input.at(result.size).isCharacterToken() &&
+        input.at(result.size).characterToken().category ==
+            CharCategory::Space) {
       ++result.size;
 
-      if (result.size == input.size())
-      {
+      if (result.size == input.size()) {
         result.result = Macro::MatchResult::PartialMatch;
         return false;
       }
     }
 
-    if (input.at(result.size).isControlSequence())
-    {
-      result.arguments[param_num] = { input.at(result.size++) };
+    if (input.at(result.size).isControlSequence()) {
+      result.arguments[param_num] = {input.at(result.size++)};
       return true;
     }
 
     assert(input.at(result.size).isCharacterToken());
 
-    if (input.at(result.size).characterToken().category == CharCategory::GroupBegin)
-    {
+    if (input.at(result.size).characterToken().category ==
+        CharCategory::GroupBegin) {
       int brace_depth = 1;
       const size_t start_index = result.size;
 
       ++result.size;
 
-      while (result.size < input.size() && brace_depth != 0)
-      {
-        if (input.at(result.size).isCharacterToken())
-        {
-          if (input.at(result.size).characterToken().category == CharCategory::GroupBegin)
-          {
+      while (result.size < input.size() && brace_depth != 0) {
+        if (input.at(result.size).isCharacterToken()) {
+          if (input.at(result.size).characterToken().category ==
+              CharCategory::GroupBegin) {
             brace_depth += 1;
-          }
-          else if (input.at(result.size).characterToken().category == CharCategory::GroupEnd)
-          {
+          } else if (input.at(result.size).characterToken().category ==
+                     CharCategory::GroupEnd) {
             brace_depth -= 1;
           }
         }
@@ -68,47 +60,39 @@ struct Matcher
         ++result.size;
       }
 
-      if (brace_depth != 0)
-      {
+      if (brace_depth != 0) {
         result.result = Macro::MatchResult::PartialMatch;
         return false;
       }
 
-      result.arguments[param_num] = std::vector<Token>(input.begin() + start_index + 1, input.begin() + result.size - 1);
+      result.arguments[param_num] = std::vector<Token>(
+          input.begin() + start_index + 1, input.begin() + result.size - 1);
       return true;
-    }
-    else
-    {
-      result.arguments[param_num] = { input.at(result.size++) };
+    } else {
+      result.arguments[param_num] = {input.at(result.size++)};
       return true;
     }
   }
 
-  bool read_delimited_arg()
-  {
+  bool read_delimited_arg() {
     const int param_num = pattern.at(pattern_index++).parameterNumber() - 1;
     const Token delimiter = pattern.at(pattern_index);
 
     int brace_depth = 0;
     const size_t start_index = result.size;
 
-    while (result.size < input.size() && (input.at(result.size) != delimiter || brace_depth != 0))
-    {
-      if (input.at(result.size).isCharacterToken())
-      {
-        if (input.at(result.size).characterToken().category == CharCategory::GroupBegin)
-        {
+    while (result.size < input.size() &&
+           (input.at(result.size) != delimiter || brace_depth != 0)) {
+      if (input.at(result.size).isCharacterToken()) {
+        if (input.at(result.size).characterToken().category ==
+            CharCategory::GroupBegin) {
           brace_depth++;
-        }
-        else if (input.at(result.size).characterToken().category == CharCategory::GroupEnd)
-        {
+        } else if (input.at(result.size).characterToken().category ==
+                   CharCategory::GroupEnd) {
           brace_depth--;
         }
-      }
-      else if (input.at(result.size).isControlSequence())
-      {
-        if (input.at(result.size).controlSequence() == "par")
-        {
+      } else if (input.at(result.size).isControlSequence()) {
+        if (input.at(result.size).controlSequence() == "par") {
           result.result = Macro::MatchResult::NoMatch;
           return false;
         }
@@ -117,55 +101,44 @@ struct Matcher
       ++result.size;
     }
 
-    if (result.size == input.size())
-    {
+    if (result.size == input.size()) {
       result.result = Macro::MatchResult::PartialMatch;
       return false;
     }
 
-    result.arguments[param_num] = std::vector<Token>(input.begin() + start_index, input.begin() + result.size);
+    result.arguments[param_num] = std::vector<Token>(
+        input.begin() + start_index, input.begin() + result.size);
     return true;
   }
 
-  bool read_arg()
-  {
-    if (pattern_index == pattern.size() - 1 || pattern.at(pattern_index + 1).isParameterToken())
-    {
+  bool read_arg() {
+    if (pattern_index == pattern.size() - 1 ||
+        pattern.at(pattern_index + 1).isParameterToken()) {
       return read_undelimited_arg();
-    }
-    else
-    {
+    } else {
       return read_delimited_arg();
     }
   }
 
-  Macro::MatchResult match()
-  {
-    while (pattern_index < pattern.size())
-    {
-      if (result.size == input.size())
-      {
+  Macro::MatchResult match() {
+    while (pattern_index < pattern.size()) {
+      if (result.size == input.size()) {
         result.result = Macro::MatchResult::PartialMatch;
         return result;
       }
 
-      const Token& pat_tok = pattern.at(pattern_index);
+      const Token &pat_tok = pattern.at(pattern_index);
 
-      if (pat_tok.isCharacterToken() || pat_tok.isControlSequence())
-      {
-        if (input.at(result.size) != pattern.at(pattern_index))
-        {
+      if (pat_tok.isCharacterToken() || pat_tok.isControlSequence()) {
+        if (input.at(result.size) != pattern.at(pattern_index)) {
           result.result = Macro::MatchResult::NoMatch;
           return result;
         }
 
         ++result.size;
         ++pattern_index;
-      }
-      else
-      {
-        if (!read_arg())
-        {
+      } else {
+        if (!read_arg()) {
           return result;
         }
       }
@@ -176,40 +149,40 @@ struct Matcher
   }
 };
 
-Macro::MatchResult Macro::match(const std::vector<Token>& text) const
-{
-  Matcher matcher{ text, parameterText() };
+Macro::MatchResult Macro::match(const std::vector<Token> &text) const {
+  Matcher matcher{text, parameterText()};
   return matcher.match();
 }
 
-std::vector<Token> Macro::expand(const std::array<std::vector<Token>, 9>& arguments) const
-{
+std::vector<Token>
+Macro::expand(const std::array<std::vector<Token>, 9> &arguments) const {
   std::vector<Token> result;
-  result.reserve(replacementText().size() + std::accumulate(arguments.begin(), arguments.end(), size_t(0), [](size_t n, const std::vector<Token>& arg) -> size_t {
-    return n + arg.size();
-    }));
+  result.reserve(
+      replacementText().size() +
+      std::accumulate(arguments.begin(), arguments.end(), size_t(0),
+                      [](size_t n, const std::vector<Token> &arg) -> size_t {
+                        return n + arg.size();
+                      }));
 
   expand(arguments, result, result.end());
 
   return result;
 }
 
-void Macro::expand(const std::array<std::vector<Token>, 9>& arguments, std::vector<Token>& output, std::vector<Token>::iterator output_it) const
-{
+void Macro::expand(const std::array<std::vector<Token>, 9> &arguments,
+                   std::vector<Token> &output,
+                   std::vector<Token>::iterator output_it) const {
   std::vector<Token> repl = replacementText();
 
-  for (auto it = repl.begin(); it != repl.end();)
-  {
-    if (it->isParameterToken())
-    {
+  for (auto it = repl.begin(); it != repl.end();) {
+    if (it->isParameterToken()) {
       const int param_num = it->parameterNumber();
 
       it = repl.erase(it);
-      it = repl.insert(it, arguments.at(param_num-1).begin(), arguments.at(param_num - 1).end());
+      it = repl.insert(it, arguments.at(param_num - 1).begin(),
+                       arguments.at(param_num - 1).end());
       it += arguments.at(param_num - 1).size();
-    }
-    else
-    {
+    } else {
       ++it;
     }
   }
@@ -217,12 +190,9 @@ void Macro::expand(const std::array<std::vector<Token>, 9>& arguments, std::vect
   output.insert(output_it, repl.begin(), repl.end());
 }
 
-Preprocessor::State::Frame::Frame(Frame&& f)
-  : type(f.type),
-    subtype(f.subtype)
-{
-  switch (f.type)
-  {
+Preprocessor::State::Frame::Frame(Frame &&f)
+    : type(f.type), subtype(f.subtype) {
+  switch (f.type) {
   case ReadingMacro:
     macro_definition = f.macro_definition;
     f.macro_definition = nullptr;
@@ -243,7 +213,8 @@ Preprocessor::State::Frame::Frame(Frame&& f)
     expandafter = f.expandafter;
     f.expandafter = nullptr;
     break;
-  default: break;
+  default:
+    break;
   }
 
   f.type = State::Idle;
@@ -251,11 +222,8 @@ Preprocessor::State::Frame::Frame(Frame&& f)
 }
 
 Preprocessor::State::Frame::Frame(Preprocessor::State::FrameType ft)
-  : type(ft),
-    subtype(FST_None)
-{
-  switch (ft)
-  {
+    : type(ft), subtype(FST_None) {
+  switch (ft) {
   case ReadingMacro:
     subtype = RM_ReadingMacroName;
     macro_definition = new preprocessor::MacroDefinitionData;
@@ -274,14 +242,14 @@ Preprocessor::State::Frame::Frame(Preprocessor::State::FrameType ft)
     expandafter = new preprocessor::ExpandAfter;
     subtype = EXPAFTER_ReadingCs;
     break;
-  default: macro_definition = nullptr; break;
+  default:
+    macro_definition = nullptr;
+    break;
   }
 }
 
-Preprocessor::State::Frame::~Frame()
-{
-  switch (type)
-  {
+Preprocessor::State::Frame::~Frame() {
+  switch (type) {
   case ReadingMacro:
     delete macro_definition;
     break;
@@ -297,18 +265,17 @@ Preprocessor::State::Frame::~Frame()
   case ExpandingAfter:
     delete expandafter;
     break;
-  default: break;
+  default:
+    break;
   }
 }
 
-Preprocessor::Preprocessor()
-{
+Preprocessor::Preprocessor() {
   m_state.frames.emplace_back(State::Idle);
   m_defs.push_front(Definitions{});
 }
 
-void Preprocessor::advance()
-{
+void Preprocessor::advance() {
   if (input.empty())
     return;
 
@@ -316,37 +283,28 @@ void Preprocessor::advance()
   process(tok);
 }
 
-void Preprocessor::enter(State::FrameType s)
-{
-  m_state.frames.emplace_back(s);
-}
+void Preprocessor::enter(State::FrameType s) { m_state.frames.emplace_back(s); }
 
-void Preprocessor::leave()
-{
+void Preprocessor::leave() {
   m_state.frames.pop_back();
 
-  if (m_state.frames.back().type == State::ExpandingAfter
-    && m_state.frames.back().subtype == State::EXPAFTER_InsertingCs)
-  {
+  if (m_state.frames.back().type == State::ExpandingAfter &&
+      m_state.frames.back().subtype == State::EXPAFTER_InsertingCs) {
     input.insert(input.begin(), m_state.frames.back().expandafter->cs);
 
     leave();
   }
 }
 
-Preprocessor::State::Frame& Preprocessor::currentFrame()
-{
+Preprocessor::State::Frame &Preprocessor::currentFrame() {
   return m_state.frames.back();
 }
 
-const Macro* Preprocessor::find(const std::string& cs) const
-{
-  for (const auto& defscope : m_defs)
-  {
+const Macro *Preprocessor::find(const std::string &cs) const {
+  for (const auto &defscope : m_defs) {
     auto it = defscope.macros.find(cs);
 
-    if (it != defscope.macros.end())
-    {
+    if (it != defscope.macros.end()) {
       return &(it->second);
     }
   }
@@ -354,15 +312,12 @@ const Macro* Preprocessor::find(const std::string& cs) const
   return nullptr;
 }
 
-void Preprocessor::define(Macro m)
-{
+void Preprocessor::define(Macro m) {
   m_defs.front().macros[m.controlSequence()] = std::move(m);
 }
 
-void Preprocessor::process(Token& tok)
-{
-  switch (m_state.frames.back().type)
-  {
+void Preprocessor::process(Token &tok) {
+  switch (m_state.frames.back().type) {
   case State::ReadingMacro:
     return readMacro(tok);
   case State::ExpandingMacro:
@@ -373,60 +328,37 @@ void Preprocessor::process(Token& tok)
     return formCs(tok);
   case State::ExpandingAfter:
     return expandafter(tok);
-  default:
-  {
-    if (tok.isCharacterToken())
-    {
+  default: {
+    if (tok.isCharacterToken()) {
       output.push_back(std::move(tok));
-    }
-    else if (tok.isControlSequence())
-    {
+    } else if (tok.isControlSequence()) {
       processControlSeq(tok.controlSequence());
+    } else {
+      throw std::runtime_error{"Illegal parameter token in token stream"};
     }
-    else
-    {
-      throw std::runtime_error{ "Illegal parameter token in token stream" };
-    }
-  }
-  break;
+  } break;
   }
 }
 
-void Preprocessor::processControlSeq(const std::string& cs)
-{
-  if (cs == "def")
-  {
+void Preprocessor::processControlSeq(const std::string &cs) {
+  if (cs == "def") {
     enter(State::ReadingMacro);
-  }
-  else if (cs == "ifbr")
-  {
+  } else if (cs == "ifbr") {
     enter(State::Branching);
     currentFrame().branching->success = br;
-  }
-  else if (cs == "csname")
-  {
+  } else if (cs == "csname") {
     enter(State::FormingCS);
-  }
-  else if (cs == "expandafter")
-  {
+  } else if (cs == "expandafter") {
     enter(State::ExpandingAfter);
-  }
-  else
-  {
-    const Macro* m = find(cs);
+  } else {
+    const Macro *m = find(cs);
 
-    if (m == nullptr)
-    {
-      parsing::write(Token{ cs }, output);
-    }
-    else
-    {
-      if (m->parameterText().empty())
-      {
+    if (m == nullptr) {
+      parsing::write(Token{cs}, output);
+    } else {
+      if (m->parameterText().empty()) {
         m->expand({}, input, input.begin());
-      }
-      else
-      {
+      } else {
         enter(State::ExpandingMacro);
         currentFrame().macro_expansion->def = m;
         updateExpandMacroState();
@@ -435,333 +367,265 @@ void Preprocessor::processControlSeq(const std::string& cs)
   }
 }
 
-void Preprocessor::readMacro(Token& tok)
-{
-  State::Frame& frame = currentFrame();
-  auto& macro_definition = *(frame.macro_definition);
+void Preprocessor::readMacro(Token &tok) {
+  State::Frame &frame = currentFrame();
+  auto &macro_definition = *(frame.macro_definition);
 
-  switch (currentFrame().subtype)
-  {
-  case State::RM_ReadingMacroName:
-  {
+  switch (currentFrame().subtype) {
+  case State::RM_ReadingMacroName: {
     if (!tok.isControlSequence())
-      throw std::runtime_error{ "Expected control sequence name after \\def" };
+      throw std::runtime_error{"Expected control sequence name after \\def"};
 
     macro_definition.csname = tok.controlSequence();
     frame.subtype = State::RM_ReadingMacroParameterText;
-  }
-  break;
-  case State::RM_ReadingMacroParameterText:
-  {
-    if (tok.isCharacterToken() && tok.characterToken().value == '{')
-    {
+  } break;
+  case State::RM_ReadingMacroParameterText: {
+    if (tok.isCharacterToken() && tok.characterToken().value == '{') {
       frame.subtype = State::RM_ReadingMacroReplacementText;
       return;
     }
 
-    if (tok.isParameterToken())
-    {
+    if (tok.isParameterToken()) {
       if (tok.parameterNumber() != macro_definition.parameter_index)
-        throw std::runtime_error{ "Unexpected parameter number" };
+        throw std::runtime_error{"Unexpected parameter number"};
 
       macro_definition.parameter_index += 1;
     }
 
     macro_definition.parameter_text.push_back(tok);
-  }
-  break;
-  case State::RM_ReadingMacroReplacementText:
-  {
-    if (tok.isCharacterToken())
-    {
-      if (tok.characterToken().value == '{')
-      {
+  } break;
+  case State::RM_ReadingMacroReplacementText: {
+    if (tok.isCharacterToken()) {
+      if (tok.characterToken().value == '{') {
         macro_definition.brace_nesting += 1;
         macro_definition.replacement_text.push_back(tok);
-      }
-      else if (tok.characterToken().value == '}')
-      {
-        if (macro_definition.brace_nesting == 0)
-        {
-          Macro mdef{ std::move(macro_definition.csname), std::move(macro_definition.parameter_text), std::move(macro_definition.replacement_text) };
+      } else if (tok.characterToken().value == '}') {
+        if (macro_definition.brace_nesting == 0) {
+          Macro mdef{std::move(macro_definition.csname),
+                     std::move(macro_definition.parameter_text),
+                     std::move(macro_definition.replacement_text)};
           m_defs.front().macros[mdef.controlSequence()] = std::move(mdef);
           leave();
-        }
-        else
-        {
+        } else {
           macro_definition.brace_nesting -= 1;
           macro_definition.replacement_text.push_back(tok);
         }
-      }
-      else
-      {
+      } else {
         macro_definition.replacement_text.push_back(tok);
       }
-    }
-    else
-    {
+    } else {
       macro_definition.replacement_text.push_back(tok);
     }
-  }
-  break;
+  } break;
   default:
     assert(false);
     break;
   }
 }
 
-void Preprocessor::updateExpandMacroState()
-{
-  State::Frame& frame = currentFrame();
-  auto& macro_expansion = *(frame.macro_expansion);
+void Preprocessor::updateExpandMacroState() {
+  State::Frame &frame = currentFrame();
+  auto &macro_expansion = *(frame.macro_expansion);
 
-  const std::vector<Token>& fullpat = macro_expansion.def->parameterText();
+  const std::vector<Token> &fullpat = macro_expansion.def->parameterText();
 
   if (macro_expansion.pattern_index == fullpat.size())
     return;
 
-  if (fullpat.at(macro_expansion.pattern_index).isParameterToken())
-  {
+  if (fullpat.at(macro_expansion.pattern_index).isParameterToken()) {
     macro_expansion.current_arg_brace_nesting = 0;
 
-    if (macro_expansion.pattern_index == fullpat.size() - 1 || fullpat.at(macro_expansion.pattern_index + 1).isParameterToken())
-    {
+    if (macro_expansion.pattern_index == fullpat.size() - 1 ||
+        fullpat.at(macro_expansion.pattern_index + 1).isParameterToken()) {
       frame.subtype = State::EXPM_ReadingUndelimitedMacroArgument;
-    }
-    else
-    {
+    } else {
       frame.subtype = State::EXPM_ReadingDelimitedMacroArgument;
     }
-  }
-  else
-  {
+  } else {
     frame.subtype = State::EXPM_MatchingMacroParameterText;
   }
 }
 
-void Preprocessor::expandMacro(Token& tok)
-{
-  State::Frame& frame = currentFrame();
-  auto& macro_expansion = *(frame.macro_expansion);
+void Preprocessor::expandMacro(Token &tok) {
+  State::Frame &frame = currentFrame();
+  auto &macro_expansion = *(frame.macro_expansion);
 
   auto advance_pattern = [this, &macro_expansion]() {
-
     macro_expansion.pattern_index++;
     updateExpandMacroState();
-
   };
 
-  switch (frame.subtype)
-  {
-  case State::EXPM_MatchingMacroParameterText:
-  {
-    const Token& pat = macro_expansion.def->parameterText().at(macro_expansion.pattern_index);
+  switch (frame.subtype) {
+  case State::EXPM_MatchingMacroParameterText: {
+    const Token &pat =
+        macro_expansion.def->parameterText().at(macro_expansion.pattern_index);
 
     if (tok != pat)
-      throw std::runtime_error{ "Use of macro does not match its definition" };
+      throw std::runtime_error{"Use of macro does not match its definition"};
 
     advance_pattern();
-  }
-  break;
-  case State::EXPM_ReadingDelimitedMacroArgument:
-  {
-    const Token& delimiter_pat = macro_expansion.def->parameterText().at(macro_expansion.pattern_index + 1);
+  } break;
+  case State::EXPM_ReadingDelimitedMacroArgument: {
+    const Token &delimiter_pat = macro_expansion.def->parameterText().at(
+        macro_expansion.pattern_index + 1);
 
-    if (tok == delimiter_pat && macro_expansion.current_arg_brace_nesting == 0)
-    {
+    if (tok == delimiter_pat &&
+        macro_expansion.current_arg_brace_nesting == 0) {
       macro_expansion.pattern_index++;
       macro_expansion.current_arg_index++;
       frame.subtype = State::EXPM_MatchingMacroParameterText;
       advance_pattern();
-    }
-    else
-    {
-      macro_expansion.arguments[macro_expansion.current_arg_index].push_back(tok);
+    } else {
+      macro_expansion.arguments[macro_expansion.current_arg_index].push_back(
+          tok);
 
-      if (tok.isCharacterToken())
-      {
-        if (tok.characterToken().value == '{')
-        {
+      if (tok.isCharacterToken()) {
+        if (tok.characterToken().value == '{') {
           macro_expansion.current_arg_brace_nesting++;
-        }
-        else if (tok.characterToken().value == '}')
-        {
+        } else if (tok.characterToken().value == '}') {
           if (macro_expansion.current_arg_brace_nesting == 0)
-            throw std::runtime_error{ "Invalid nesting of '{' and '}' in delimited macro argument" };
+            throw std::runtime_error{
+                "Invalid nesting of '{' and '}' in delimited macro argument"};
 
           macro_expansion.current_arg_brace_nesting--;
         }
       }
     }
-  }
-  break;
-  case State::EXPM_ReadingUndelimitedMacroArgument:
-  {
-    std::vector<Token>& current_arg_content = macro_expansion.arguments[macro_expansion.current_arg_index];
+  } break;
+  case State::EXPM_ReadingUndelimitedMacroArgument: {
+    std::vector<Token> &current_arg_content =
+        macro_expansion.arguments[macro_expansion.current_arg_index];
 
     assert(current_arg_content.empty());
 
-    if (tok.isControlSequence() || (tok != CharCategory::GroupBegin && tok != CharCategory::Space))
-    {
+    if (tok.isControlSequence() ||
+        (tok != CharCategory::GroupBegin && tok != CharCategory::Space)) {
       current_arg_content.push_back(tok);
       macro_expansion.current_arg_index++;
       advance_pattern();
-    }
-    else
-    {
-      if (tok == CharCategory::GroupBegin)
-      {
+    } else {
+      if (tok == CharCategory::GroupBegin) {
         frame.subtype = State::EXPM_ReadingBracedDelimitedMacroArgument;
         assert(macro_expansion.current_arg_brace_nesting == 0);
       }
     }
-  }
-  break;
-  case State::EXPM_ReadingBracedDelimitedMacroArgument:
-  {
-    std::vector<Token>& current_arg_content = macro_expansion.arguments[macro_expansion.current_arg_index];
+  } break;
+  case State::EXPM_ReadingBracedDelimitedMacroArgument: {
+    std::vector<Token> &current_arg_content =
+        macro_expansion.arguments[macro_expansion.current_arg_index];
 
-    if (tok == CharCategory::GroupBegin)
-    {
+    if (tok == CharCategory::GroupBegin) {
       macro_expansion.current_arg_brace_nesting++;
       current_arg_content.push_back(tok);
-    }
-    else if (tok == CharCategory::GroupEnd)
-    {
-      if (macro_expansion.current_arg_brace_nesting == 0)
-      {
+    } else if (tok == CharCategory::GroupEnd) {
+      if (macro_expansion.current_arg_brace_nesting == 0) {
         macro_expansion.current_arg_index++;
         advance_pattern();
-      }
-      else
-      {
+      } else {
         macro_expansion.current_arg_brace_nesting--;
         current_arg_content.push_back(tok);
       }
-    }
-    else
-    {
+    } else {
       current_arg_content.push_back(tok);
     }
-  }
-  break;
+  } break;
   default:
     assert(false);
     break;
   }
 
-  if (macro_expansion.pattern_index == macro_expansion.def->parameterText().size())
-  {
+  if (macro_expansion.pattern_index ==
+      macro_expansion.def->parameterText().size()) {
     // Done!
-    macro_expansion.def->expand(macro_expansion.arguments, input, input.begin());
+    macro_expansion.def->expand(macro_expansion.arguments, input,
+                                input.begin());
     leave();
   }
 }
 
-inline static bool is_if(const Token& tok)
-{
-  return tok.isControlSequence() && tok.controlSequence().length() >= 2
-    && tok.controlSequence().at(0) == 'i' && tok.controlSequence().at(1) == 'f';
+inline static bool is_if(const Token &tok) {
+  return tok.isControlSequence() && tok.controlSequence().length() >= 2 &&
+         tok.controlSequence().at(0) == 'i' &&
+         tok.controlSequence().at(1) == 'f';
 }
 
-inline static bool is_else(const Token& tok)
-{
+inline static bool is_else(const Token &tok) {
   return tok.isControlSequence() && tok.controlSequence() == "else";
 }
 
-inline static bool is_fi(const Token& tok)
-{
+inline static bool is_fi(const Token &tok) {
   return tok.isControlSequence() && tok.controlSequence() == "fi";
 }
 
-void Preprocessor::branch(Token& tok)
-{
-  State::Frame& frame = currentFrame();
-  auto& branching = *(frame.branching);
+void Preprocessor::branch(Token &tok) {
+  State::Frame &frame = currentFrame();
+  auto &branching = *(frame.branching);
 
-  if (is_if(tok))
-  {
+  if (is_if(tok)) {
     branching.if_nesting += 1;
-  }
-  else if (is_else(tok))
-  {
-    if (branching.if_nesting == 0)
-    {
+  } else if (is_else(tok)) {
+    if (branching.if_nesting == 0) {
       branching.inside_if = false;
       return;
     }
-  }
-  else if (is_fi(tok))
-  {
-    if (branching.if_nesting == 0)
-    {
-      input.insert(input.begin(), branching.successful_branch.begin(), branching.successful_branch.end());
+  } else if (is_fi(tok)) {
+    if (branching.if_nesting == 0) {
+      input.insert(input.begin(), branching.successful_branch.begin(),
+                   branching.successful_branch.end());
       leave();
       return;
-    }
-    else
-    {
+    } else {
       branching.if_nesting -= 1;
     }
   }
 
-  if (branching.success == branching.inside_if)
-  {
+  if (branching.success == branching.inside_if) {
     branching.successful_branch.push_back(std::move(tok));
   }
 }
 
-void Preprocessor::formCs(Token& tok)
-{
-  State::Frame& frame = currentFrame();
-  auto& csname = *(frame.csname);
+void Preprocessor::formCs(Token &tok) {
+  State::Frame &frame = currentFrame();
+  auto &csname = *(frame.csname);
 
-  if (tok.isControlSequence())
-  {
+  if (tok.isControlSequence()) {
     if (tok.controlSequence() != "endcsname")
-      throw std::runtime_error{ "Bad csname" };
+      throw std::runtime_error{"Bad csname"};
 
-    input.insert(input.begin(), Token{ std::move(csname.name) });
+    input.insert(input.begin(), Token{std::move(csname.name)});
     leave();
-  }
-  else
-  {
+  } else {
     csname.name.push_back(tok.characterToken().value);
   }
 }
 
-void Preprocessor::expandafter(Token& tok)
-{
+void Preprocessor::expandafter(Token &tok) {
   const size_t framecount = state().frames.size();
-  auto& data = *(currentFrame().expandafter);
+  auto &data = *(currentFrame().expandafter);
 
-  switch (currentFrame().subtype)
-  {
-  case State::EXPAFTER_ReadingCs:
-  {
+  switch (currentFrame().subtype) {
+  case State::EXPAFTER_ReadingCs: {
     if (!tok.isControlSequence())
-      throw std::runtime_error{ "Expected cs name after expandafter" };
+      throw std::runtime_error{"Expected cs name after expandafter"};
 
     data.cs = std::move(tok);
     currentFrame().subtype = State::EXPAFTER_ExpandingCs;
-  }
-  break;
-  case State::EXPAFTER_ExpandingCs:
-  {
+  } break;
+  case State::EXPAFTER_ExpandingCs: {
     if (!tok.isControlSequence())
-      throw std::runtime_error{ "Expected cs name after expandafter" };
+      throw std::runtime_error{"Expected cs name after expandafter"};
 
     currentFrame().subtype = State::EXPAFTER_InsertingCs;
 
     processControlSeq(tok.controlSequence());
 
-    if (state().frames.size() == framecount)
-    {
+    if (state().frames.size() == framecount) {
       enter(State::Idle);
       leave();
     }
-  }
-  break;
+  } break;
+  default: {
+  } break;
   }
 }
 
